@@ -67,11 +67,10 @@ public class TusServerConfig {
                                 ChecksumService checksumService,
                                 MinioStorageService minioStorageService,
                                 CallbackService callbackService,
-                                UploadProgressService uploadProgressService,
-                                TusServerProperties tusServerPropertiesBean) {
+                                UploadProgressService uploadProgressService) {
         return new TusFilter(tusFileUploadService, fileInfoRepository,
                 validationProperties, checksumService, minioStorageService,
-                callbackService, uploadProgressService, tusServerPropertiesBean);
+                callbackService, uploadProgressService, tusServerProperties);
     }
 
     /**

@@ -3,14 +3,12 @@ package com.example.tusminio.server.config;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
 
 /**
  * MinIO 오브젝트 스토리지 접속 설정
  */
 @Getter
 @Setter
-@Component
 @ConfigurationProperties(prefix = "minio")
 public class MinioProperties {
 
