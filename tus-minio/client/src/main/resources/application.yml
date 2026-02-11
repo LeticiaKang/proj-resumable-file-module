@@ -1,0 +1,38 @@
+server:
+  port: 8085
+
+# === TUS 프로토콜 설정 ===
+tus:
+  server-url: http://localhost:8086/files # TUS 서버 엔드포인트 URL
+  chunk-size: 3145728  # 청킹 크기 : 3MB
+
+# === 재시도 정책 - 지수 백오프(Exponential Backoff) 기반 ===
+tus.retry:
+  max-attempts: 3
+  initial-delay-ms: 1000    # 첫 번째 재시도 대기 시간 (1초)
+  max-delay-ms: 30000       # 최대 재시도 대기 시간 (30초)
+  multiplier: 2.0           # 대기 시간 증가 배수 (1초 → 2초 → 4초 ... 최대 30초)
+
+# === 업로드 동시성 설정 ===
+tus.upload:
+  max-concurrent: 3      # 동시 업로드 가능한 최대 파일 수
+  thread-pool-size: 5    # 업로드 처리용 스레드 풀 크기
+
+# === DB 설정 (resume URL 저장) ===
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5434/tus_db
+    username: tus_user
+    password: tus_pass
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+
+# === 로깅 설정 ===
+logging:
+  level:
+    com.example.tusminio.client: DEBUG
+    org.hibernate.SQL: DEBUG           # 실행 SQL 출력
+    org.hibernate.orm.jdbc.bind: TRACE # 바인딩 파라미터 값 출력

@@ -1,0 +1,7 @@
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'io.tus.java.client:tus-java-client:0.5.0'
+    runtimeOnly 'org.postgresql:postgresql'
+    implementation 'com.github.gavlyukovskiy:p6spy-spring-boot-starter:1.9.1'
+}

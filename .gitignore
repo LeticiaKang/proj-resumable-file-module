@@ -1,0 +1,41 @@
+# === Build ===
+build/
+out/
+target/
+
+# === Gradle ===
+.gradle/
+gradle/
+gradlew
+gradlew.bat
+
+# === IDE ===
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.project
+.classpath
+*.swp
+
+# === Claude ===
+.claude/
+
+# === OS ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === 업로드 파일 저장소 ===
+manual/server/files/
+tus-minio/server/files/
+
+# === 로그 ===
+*.log
+logs/
+
+# === 환경 ===
+.env
+*.env.local

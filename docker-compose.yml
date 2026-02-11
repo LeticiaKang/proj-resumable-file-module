@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  # PostgreSQL
+  postgres:
+    image: postgres:15
+    container_name: tus-postgres
+    environment:
+      POSTGRES_DB: tus_db
+      POSTGRES_USER: tus_user
+      POSTGRES_PASSWORD: tus_pass
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck: # 로컬에서 DB가 준비되었는지 확인하는 로직
+      test: [ "CMD-SHELL", "pg_isready -U tus_user -d tus_db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # MinIO
+  minio:
+    image: minio/minio
+    container_name: tus-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 로컬 테스트 시 매번 버킷 만들지 않음
+  init-minio:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set local http://minio:9000 minioadmin minioadmin123;
+      /usr/bin/mc mb local/tus-bucket || true;
+      exit 0;
+      "
+
+volumes:
+  postgres_data:
+  minio_data:

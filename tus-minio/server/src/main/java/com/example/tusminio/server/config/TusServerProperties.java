@@ -1,0 +1,52 @@
+package com.example.tusminio.server.config;
+
+import jakarta.annotation.PostConstruct;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+/**
+ * TUS 서버 핵심 설정.
+ * <p>
+ * tus-java-server 라이브러리가 업로드 청크를 임시 저장할 로컬 디스크 경로와
+ * 최대 업로드 크기를 설정합니다.
+ * 업로드 완료 후 파일은 MinIO로 전송되며, 이 경로는 중간 저장소 역할을 합니다.
+ * </p>
+ */
+@Slf4j
+@Getter
+@Setter
+@Component
+@ConfigurationProperties(prefix = "tus")
+public class TusServerProperties {
+
+    /** 업로드 파일 임시 저장 디렉토리 경로 (tus-java-server가 청크를 저장하는 위치) */
+    private String storagePath = "./tus-minio/server/files";
+
+    /** 최대 업로드 크기 (바이트). 기본값: 1GB (1073741824 bytes) */
+    private long maxUploadSize = 1_073_741_824L;
+
+    /**
+     * 서버 시작 시 저장 디렉토리가 존재하지 않으면 자동 생성합니다.
+     * tus-java-server 라이브러리가 파일 청크를 저장할 디렉토리가 반드시 필요합니다.
+     */
+    @PostConstruct
+    public void init() throws IOException {
+        Path path = Paths.get(storagePath);
+        if (!Files.exists(path)) {
+            Files.createDirectories(path);
+            log.info("=== [TUS CONFIG] 저장 디렉토리 생성: {} ===", path.toAbsolutePath());
+        } else {
+            log.info("=== [TUS CONFIG] 저장 디렉토리 확인 완료: {} ===", path.toAbsolutePath());
+        }
+        log.info("=== [TUS CONFIG] 최대 업로드 크기: {} bytes ({} MB) ===",
+                maxUploadSize, maxUploadSize / (1024 * 1024));
+    }
+}

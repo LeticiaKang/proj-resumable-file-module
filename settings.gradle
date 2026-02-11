@@ -1,0 +1,6 @@
+rootProject.name = 'proj-resumable-file-module'
+
+include 'manual:client'
+include 'manual:server'
+include 'tus-minio:client'
+include 'tus-minio:server'

@@ -1,0 +1,7 @@
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'me.desair.tus:tus-java-server:1.0.0-3.0'
+    implementation 'io.minio:minio:8.5.7'
+    runtimeOnly 'org.postgresql:postgresql'
+    implementation 'com.github.gavlyukovskiy:p6spy-spring-boot-starter:1.9.1'
+}

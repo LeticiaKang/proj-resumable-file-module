@@ -1,0 +1,47 @@
+server:
+  port: 8082
+
+# === TUS 서버 설정 ===
+tus:
+  storage-path: ./manual/server/files
+  max-upload-size: 1073741824  # 1GB
+
+# === 만료 정책 ===
+tus.expiration:
+  enabled: true
+  timeout: 24h
+  cleanup-interval: 1h
+
+# === 파일 검증 ===
+tus.validation:
+  allowed-extensions:
+    - .zip
+    - .pdf
+    - .png
+    - .jpg
+    - .txt
+    - .csv
+
+# === 콜백 설정 ===
+tus.callback:
+  enabled: false
+  url: http://localhost:9090/webhook/upload-complete
+
+# === DB 설정 ===
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5434/tus_db
+    username: tus_user
+    password: tus_pass
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+  servlet:
+    multipart:
+      enabled: false
+
+logging:
+  level:
+    com.example.tus.server: DEBUG

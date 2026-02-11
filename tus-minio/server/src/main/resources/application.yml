@@ -1,0 +1,61 @@
+server:
+  port: 8086
+
+# === TUS 서버 설정 ===
+tus:
+  storage-path: ./tus-minio/server/files  # 업로드 파일 임시 저장 경로 (MinIO 전송 전 로컬 보관)
+  max-upload-size: 1073741824  # 최대 업로드 파일 크기 : 1GB (1024 * 1024 * 1024)
+
+# === MinIO 설정 ===
+minio:
+  endpoint: http://localhost:9000
+  access-key: minioadmin
+  secret-key: minioadmin123
+  bucket: tus-uploads
+  delete-local-after-transfer: true
+
+# === 만료 정책 ===
+# 미완료 업로드(중단/방치) 자동 정리 설정
+tus.expiration:
+  enabled: true               # 만료 정책 활성화
+  timeout: 24h                # 미완료 업로드 만료 시간 (마지막 활동 기준 24시간)
+  cleanup-interval: 1h        # 만료 파일 정리 스케줄 주기 (1시간마다 체크)
+
+# === 파일 검증 ===
+# 업로드 허용 확장자 화이트리스트
+tus.validation:
+  allowed-extensions:
+    - .zip
+    - .pdf
+    - .png
+    - .jpg
+    - .txt
+    - .csv
+
+# === 콜백 설정 ===
+# 업로드 완료 시 외부 시스템에 알림 전송
+tus.callback:
+  enabled: false
+  url: http://localhost:9090/webhook/upload-complete
+
+# === DB 설정 ===
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5434/tus_db
+    username: tus_user
+    password: tus_pass
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+  servlet:
+    multipart:
+      enabled: false
+
+# === 로깅 설정 ===
+logging:
+  level:
+    com.example.tusminio.server: DEBUG
+    org.hibernate.SQL: DEBUG           # 실행 SQL 출력
+    org.hibernate.orm.jdbc.bind: TRACE # 바인딩 파라미터 값 출력
