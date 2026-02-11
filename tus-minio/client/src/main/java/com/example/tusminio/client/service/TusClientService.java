@@ -22,8 +22,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * tus-java-client 라이브러리가 TUS 프로토콜을 내부적으로 처리하는 방식:
- *
  * 1. TusClient 생성 및 설정
  *    - setUploadCreationURL(): TUS 서버의 업로드 엔드포인트 설정
  *    - enableResuming(TusURLStore): 이어받기 활성화 + URL 저장소 연결
@@ -53,65 +51,49 @@ public class TusClientService {
     private final RetryProperties retryProperties;
     private final TusURLDatabaseStore tusURLDatabaseStore;
 
-    /**
-     * 파일 업로드 수행 (신규 또는 자동 이어받기)
-     *
-     * tus-java-client의 resumeOrCreateUpload()를 사용하므로,
-     * DB에 이전 업로드 URL이 있으면 자동으로 이어받기를 시도한다.
-     * 이전 URL이 없으면 새 업로드를 생성한다.
-     *
-     * @param filePath 업로드할 파일의 로컬 절대 경로
-     * @return 업로드 결과 정보
-     */
-    public UploadResponse uploadFile(String filePath) {
-        log.info("=== [업로드 시작] file={} ===", filePath);
-
+    // 공통 검증 메서드
+    private File validateAndGetFile(String filePath) {
         File file = new File(filePath);
         if (!file.exists()) {
-            log.error("=== [업로드 중 ERROR🚨] 파일이 존재하지 않음: {} ===", filePath);
-            
+            throw new IllegalArgumentException("파일이 존재하지 않습니다: " + filePath);
+        }
+        return file;
+    }
+
+    /**
+     * 파일 업로드 수행 (신규 또는 자동 이어받기)
+     */
+    public UploadResponse uploadFile(String filePath) {
+        try {
+            File file = validateAndGetFile(filePath);
+            return executeWithRetry(file, false);
+        } catch (IllegalArgumentException e) {
             return UploadResponse.builder()
-                    .fileName(file.getName())
+                    .fileName(new File(filePath).getName())
                     .status("FAILED")
-                    .message("파일이 존재하지 않습니다: " + filePath)
+                    .message(e.getMessage())
                     .build();
         }
-
-        return executeWithRetry(file, false);
     }
 
     /**
      * 파일 이어받기 업로드 수행
-     *
-     * uploadFile()과 동일한 로직이지만, 로그에 이어받기 의도를 명시한다.
-     * 실제 이어받기 여부는 TusURLDatabaseStore에 저장된 URL 존재 여부에 따라
-     * tus-java-client가 자동으로 판단한다.
-     *
-     * @param filePath 이어받기할 파일의 로컬 절대 경로
-     * @return 업로드 결과 정보
      */
     public UploadResponse resumeUpload(String filePath) {
-        log.info("=== [RESUME] 이전 업로드 이어받기: file={} ===", filePath);
-
-        File file = new File(filePath);
-        if (!file.exists()) {
-            log.error("=== [RESUME ERROR] 파일이 존재하지 않음: {} ===", filePath);
+        try {
+            File file = validateAndGetFile(filePath);
+            return executeWithRetry(file, true);
+        } catch (IllegalArgumentException e) {
             return UploadResponse.builder()
-                    .fileName(file.getName())
+                    .fileName(new File(filePath).getName())
                     .status("FAILED")
-                    .message("파일이 존재하지 않습니다: " + filePath)
+                    .message(e.getMessage())
                     .build();
         }
-
-        return executeWithRetry(file, true);
     }
 
     /**
      * 재시도 로직을 적용한 업로드 실행
-     *
-     * 지수 백오프(exponential backoff) 방식으로 최대 maxAttempts까지 재시도한다.
-     * 재시도 시에도 tus-java-client가 자동으로 이어받기를 처리하므로,
-     * 이전에 전송된 청크는 다시 보내지 않는다.
      *
      * @param file     업로드할 파일
      * @param isResume 이어받기 요청 여부 (로그 구분용)
@@ -167,8 +149,6 @@ public class TusClientService {
 
     /**
      * 실제 TUS 업로드 수행
-     *
-     * tus-java-client 라이브러리의 핵심 흐름:
      * TusClient 생성 → TusUpload 생성 → resumeOrCreateUpload → uploadChunk 루프 → finish
      *
      * @param file     업로드할 파일
@@ -227,12 +207,8 @@ public class TusClientService {
             // chunckSize만큼 데이터를 PATCH로 서버에 전송함. >> 파일을 다 읽으면 -1 반환하여 업로드 완료
 
             long uploadedBytes = uploader.getOffset();
-            if (totalBytes > 0) { //아직 보낼 데이터 남아 있음
-                double progress = (double) uploadedBytes / totalBytes * 100;
-                log.info("=== [청크 전송] {}/{} bytes ({}%) ===", uploadedBytes, totalBytes, String.format("%.1f", progress));
-            } else { // -1로 완료됨
-                log.info("=== [청크 전송] {} bytes uploaded ===", uploadedBytes);
-            }
+            double progress = (totalBytes > 0) ? (double) uploadedBytes / totalBytes * 100 : 100.0;
+            log.info("=== [청크 전송] {}/{} bytes ({}%) ===", uploadedBytes, totalBytes, String.format("%.1f", progress));
         } while (chunkResult > -1);
 
         // 7. 업로드 완료 처리

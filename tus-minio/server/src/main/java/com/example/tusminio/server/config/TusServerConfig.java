@@ -40,7 +40,7 @@ public class TusServerConfig {
 
     /**
      * tus-java-server 라이브러리의 핵심 서비스 빈.
-     * TUS 프로토콜 요청을 처리하고, 업로드 파일을 로컬 디스크에 관리합니다.
+     * TUS 프로토콜 요청을 처리하고, 업로드 파일을 로컬 디스크에 관리
      */
     @Bean
     public TusFileUploadService tusFileUploadService() {
@@ -52,11 +52,7 @@ public class TusServerConfig {
     }
 
     /**
-     * TusFilter를 /files/* URL 패턴에 등록합니다.
-     * <p>
-     * FilterRegistrationBean을 사용하여 특정 URL 패턴에만 필터를 적용합니다.
-     * /files/* 경로로 들어오는 TUS 프로토콜 요청만 이 필터가 처리합니다.
-     * </p>
+     * FilterRegistrationBean을 사용하여 특정 URL 패턴에만 필터를 적용
      */
     @Bean
     public FilterRegistrationBean<TusFilter> tusFilterRegistration(TusFilter tusFilter) {

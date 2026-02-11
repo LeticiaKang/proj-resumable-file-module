@@ -18,7 +18,7 @@ minio:
 # 미완료 업로드(중단/방치) 자동 정리 설정
 tus.expiration:
   enabled: true               # 만료 정책 활성화
-  timeout: 24h                # 미완료 업로드 만료 시간 (마지막 활동 기준 24시간)
+  timeout: 1h                # 미완료 업로드 만료 시간 (마지막 활동 기준 24시간)
   cleanup-interval: 1h        # 만료 파일 정리 스케줄 주기 (1시간마다 체크)
 
 # === 파일 검증 ===

@@ -13,12 +13,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
- * TUS 서버 핵심 설정.
- * <p>
- * tus-java-server 라이브러리가 업로드 청크를 임시 저장할 로컬 디스크 경로와
- * 최대 업로드 크기를 설정합니다.
- * 업로드 완료 후 파일은 MinIO로 전송되며, 이 경로는 중간 저장소 역할을 합니다.
- * </p>
+ * TUS 서버 핵심 설정
  */
 @Slf4j
 @Getter

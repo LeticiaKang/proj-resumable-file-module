@@ -6,14 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 /**
- * MinIO 오브젝트 스토리지 접속 설정.
- * <p>
- * TUS 프로토콜로 로컬에 저장된 파일을 MinIO로 전송할 때 사용되는 설정입니다.
- * - endpoint: MinIO 서버 URL
- * - accessKey/secretKey: 인증 정보
- * - bucket: 파일이 저장될 버킷 이름
- * - deleteLocalAfterTransfer: MinIO 전송 완료 후 로컬 파일 삭제 여부
- * </p>
+ * MinIO 오브젝트 스토리지 접속 설정
  */
 @Getter
 @Setter

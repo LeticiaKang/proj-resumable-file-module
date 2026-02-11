@@ -7,10 +7,6 @@ import java.util.List;
 
 /**
  * 배치(다중) 파일 업로드 요청 DTO
- *
- * 여러 파일을 동시에 업로드할 때 사용한다.
- * BatchUploadService가 Semaphore로 동시성을 제어하면서
- * 각 파일을 CompletableFuture로 비동기 업로드한다.
  */
 @Data
 public class BatchUploadRequest {

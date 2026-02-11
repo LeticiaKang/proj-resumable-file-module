@@ -9,11 +9,7 @@ import java.time.Duration;
 
 /**
  * 업로드 만료 정책 설정.
- * <p>
- * 일정 시간이 지나도 완료되지 않은 업로드를 자동으로 정리합니다.
- * TUS 프로토콜의 expiration 확장을 지원하기 위한 설정입니다.
- * tus-java-server 라이브러리의 withUploadExpirationPeriod()와 연동됩니다.
- * </p>
+ * 일정 시간이 지나도 완료되지 않은 업로드를 자동으로 정리
  */
 @Getter
 @Setter

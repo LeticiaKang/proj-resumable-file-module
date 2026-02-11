@@ -1,5 +1,6 @@
 package com.example.tusminio.client.controller;
 
+import com.example.tusminio.client.config.TusClientProperties;
 import com.example.tusminio.client.dto.BatchUploadRequest;
 import com.example.tusminio.client.dto.BatchUploadResponse;
 import com.example.tusminio.client.dto.UploadRequest;
@@ -34,6 +35,7 @@ public class FileUploadController {
     private final TusClientService tusClientService;
     private final BatchUploadService batchUploadService;
     private final WebClient.Builder webClientBuilder;
+    private final TusClientProperties tusClientProperties;
 
     /**
      * 단일 파일 업로드
@@ -80,19 +82,14 @@ public class FileUploadController {
      * HEAD 요청으로 서버의 현재 offset을 확인한 뒤 해당 위치부터 전송한다.
      *
      * 이전 업로드 URL이 DB에 없으면 새 업로드를 생성한다.
-     *
-     * @param filePath 이어받기할 파일의 경로 (URL 인코딩된 경로)
-     * @return 업로드 결과
      */
-    @PostMapping("/resume/{filePath}")
-    public ResponseEntity<UploadResponse> resumeUpload(
-            @PathVariable String filePath) {
-
-        log.info("=== [API] POST /api/tus/resume/{} ===", filePath);
-
-        UploadResponse response = tusClientService.resumeUpload(filePath);
+    @PostMapping("/resume")
+    public ResponseEntity<UploadResponse> resumeUpload(@Valid @RequestBody UploadRequest request) {
+        log.info("=== [API] POST /api/tus/resume - filePath={} ===", request.getFilePath());
+        UploadResponse response = tusClientService.resumeUpload(request.getFilePath());
         return ResponseEntity.ok(response);
     }
+
 
     /**
      * 업로드 진행 상황 조회 (TUS 서버 프록시)
@@ -104,14 +101,14 @@ public class FileUploadController {
      * @return 서버의 진행 상황 응답 (JSON 문자열)
      */
     @GetMapping("/progress/{fileId}")
-    public ResponseEntity<String> getUploadProgress(@PathVariable String fileId) {
+    public ResponseEntity<?> getUploadProgress(@PathVariable String fileId) {
         log.info("=== [API] GET /api/tus/progress/{} ===", fileId);
-
+        String baseUrl = tusClientProperties.getServerUrl();
         try {
             // TUS 서버의 진행 상황 API를 프록시 호출
             String progressResponse = webClientBuilder.build()
                     .get()
-                    .uri("http://localhost:8086/api/progress/{fileId}", fileId)
+                    .uri(baseUrl + "/api/progress/{fileId}", fileId)
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
@@ -120,7 +117,7 @@ public class FileUploadController {
         } catch (Exception e) {
             log.error("=== [API] 진행 상황 조회 실패: {} ===", e.getMessage());
             return ResponseEntity.internalServerError()
-                    .body("{\"error\": \"진행 상황 조회 실패: " + e.getMessage() + "\"}");
+                    .body(Map.of("error", "진행 상황 조회 실패: " + e.getMessage()));
         }
     }
 }

@@ -5,9 +5,6 @@ import lombok.Data;
 
 /**
  * 단일 파일 업로드 응답 DTO
- *
- * 업로드 완료 후 결과 정보를 반환한다.
- * fileId는 TUS 서버가 발급한 업로드 URL에서 추출한 고유 ID이다.
  */
 @Data
 @Builder
