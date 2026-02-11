@@ -1,5 +1,6 @@
 package com.example.tusminio.server.filter;
 
+import com.example.tusminio.server.config.TusServerProperties;
 import com.example.tusminio.server.config.ValidationProperties;
 import com.example.tusminio.server.controller.DebugController;
 import com.example.tusminio.server.entity.FileInfo;
@@ -57,6 +58,7 @@ public class TusFilter extends OncePerRequestFilter {
     private final MinioStorageService minioStorageService;
     private final CallbackService callbackService;
     private final UploadProgressService uploadProgressService;
+    private final TusServerProperties tusServerProperties;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -182,8 +184,10 @@ public class TusFilter extends OncePerRequestFilter {
             long currentOffset = uploadInfo.getOffset();
             long totalLength = uploadInfo.getLength();
 
-            // DB에서 FileInfo 레코드 조회 및 오프셋 갱신 (@Transactional 서비스 위임)
-            FileInfo fileInfo = uploadProgressService.updateOffset(requestURI, currentOffset);
+            // DB에서 FileInfo 레코드 조회 및 오프셋 조건부 갱신 (퍼센트 구간 변경 시만 UPDATE)
+            FileInfo fileInfo = uploadProgressService.updateOffsetIfNeeded(
+                    requestURI, currentOffset, totalLength,
+                    tusServerProperties.getOffsetUpdatePercent());
             if (fileInfo == null) {
                 return;
             }

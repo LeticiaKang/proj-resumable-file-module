@@ -11,10 +11,8 @@ import java.util.Optional;
 
 /**
  * 업로드 진행 상태를 트랜잭션 내에서 안전하게 갱신하는 서비스.
- * <p>
  * TusFilter(서블릿 필터)에서는 Spring 프록시 기반 @Transactional이 동작하지 않으므로,
- * DB 조작 로직을 이 서비스로 위임하여 트랜잭션과 Optimistic Locking을 보장합니다.
- * </p>
+ * DB 조작 로직을 이 서비스로 위임하여 트랜잭션과 Optimistic Locking을 보장
  */
 @Slf4j
 @Service
@@ -29,7 +27,7 @@ public class UploadProgressService {
      * @return 갱신된 FileInfo, 없으면 null
      */
     @Transactional
-    public FileInfo updateOffset(String uploadUri, long currentOffset) {
+    public FileInfo updateOffsetIfNeeded(String uploadUri, long currentOffset, long totalLength, int offsetUpdatePercent) {
         Optional<FileInfo> optional = fileInfoRepository.findByUploadUri(uploadUri);
         if (optional.isEmpty()) {
             log.warn("=== [PROGRESS] DB에 FileInfo 없음: {} ===", uploadUri);
@@ -37,8 +35,15 @@ public class UploadProgressService {
         }
 
         FileInfo fileInfo = optional.get();
-        fileInfo.updateOffset(currentOffset);
-        return fileInfoRepository.save(fileInfo);
+        boolean isComplete = currentOffset == totalLength;
+
+        if (isComplete || shouldUpdate(fileInfo.getOffset(), currentOffset, totalLength, offsetUpdatePercent)) {
+            fileInfo.updateOffset(currentOffset);
+            fileInfoRepository.save(fileInfo);
+            log.debug("=== [PROGRESS] offset DB 갱신: {}/{} ===", currentOffset, totalLength);
+        }
+
+        return fileInfo;
     }
 
     /**
@@ -54,5 +59,18 @@ public class UploadProgressService {
         FileInfo fileInfo = optional.get();
         fileInfo.markCompleted();
         return fileInfoRepository.save(fileInfo);
+    }
+
+    /**
+     * 퍼센트 구간이 변경되었는지 판단합니다.
+     * 예: offsetUpdatePercent=10이면, 0→9%는 스킵, 9→10%에서 갱신.
+     */
+    private boolean shouldUpdate(long lastOffset, long currentOffset, long totalLength, int offsetUpdatePercent) {
+        if (offsetUpdatePercent <= 0 || totalLength <= 0) {
+            return true; // 0이면 매번 갱신
+        }
+        int lastBucket = (int) (lastOffset * 100 / totalLength / offsetUpdatePercent);
+        int currentBucket = (int) (currentOffset * 100 / totalLength / offsetUpdatePercent);
+        return currentBucket > lastBucket;
     }
 }

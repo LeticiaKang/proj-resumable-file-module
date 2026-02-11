@@ -28,6 +28,9 @@ public class TusServerProperties {
     /** 최대 업로드 크기 (바이트). 기본값: 1GB (1073741824 bytes) */
     private long maxUploadSize = 1_073_741_824L;
 
+    /** DB offset 갱신 간격 (퍼센트 단위). 기본값: 10 → 10% 단위로 갱신. 0이면 매 청크마다 갱신 */
+    private int offsetUpdatePercent = 10;
+
     /**
      * 서버 시작 시 저장 디렉토리가 존재하지 않으면 자동 생성합니다.
      * tus-java-server 라이브러리가 파일 청크를 저장할 디렉토리가 반드시 필요합니다.
