@@ -53,46 +53,45 @@ public class MinioStorageService {
         try {
             // 1. tus-java-server로부터 업로드된 파일의 InputStream 획득
             //    getUploadedBytes()는 완료된 업로드의 전체 바이트를 InputStream으로 반환
-            InputStream uploadedBytes = tusFileUploadService.getUploadedBytes(uploadUri);
-            if (uploadedBytes == null) {
-                log.error("=== [MINIO] 업로드 파일을 찾을 수 없음: {} ===", uploadUri);
-                fileInfo.setStatus("failed");
+            try (InputStream uploadedBytes = tusFileUploadService.getUploadedBytes(uploadUri)) {
+                if (uploadedBytes == null) {
+                    log.error("=== [MINIO] 업로드 파일을 찾을 수 없음: {} ===", uploadUri);
+                    fileInfo.markFailed();
+                    fileInfoRepository.save(fileInfo);
+                    return;
+                }
+
+                // 2. MinIO 오브젝트 키 생성: "{uploadId}/{fileName}"
+                //    uploadUri에서 마지막 경로 세그먼트를 uploadId로 사용
+                String uploadId = extractUploadId(uploadUri);
+                String objectKey = uploadId + "/" + fileName;
+
+                // 3. MinIO 버킷에 PutObject로 파일 업로드
+                minioClient.putObject(
+                        PutObjectArgs.builder()
+                                .bucket(minioProperties.getBucket())
+                                .object(objectKey)
+                                .stream(uploadedBytes, fileInfo.getTotalSize(), -1)
+                                .build()
+                );
+
+                log.info("=== [MINIO] 전송 완료 objectKey={} ===", objectKey);
+
+                // 4. 로컬 임시 파일은 즉시 삭제하지 않음
+                //    tus-java-client가 업로드 완료 후 추가 확인 요청을 보낼 수 있으므로,
+                //    즉시 삭제하면 404가 발생하여 클라이언트가 실패로 판단함.
+                //    로컬 파일 정리는 ExpirationService가 스케줄링으로 처리함.
+                if (minioProperties.isDeleteLocalAfterTransfer()) {
+                    log.debug("=== [MINIO] 로컬 파일은 ExpirationService가 정리 예정: {} ===", uploadUri);
+                }
+
+                // 5. DB 상태 갱신: "transferred" + minioObjectKey 기록
+                fileInfo.markTransferred(objectKey);
                 fileInfoRepository.save(fileInfo);
-                return;
             }
-
-            // 2. MinIO 오브젝트 키 생성: "{uploadId}/{fileName}"
-            //    uploadUri에서 마지막 경로 세그먼트를 uploadId로 사용
-            String uploadId = extractUploadId(uploadUri);
-            String objectKey = uploadId + "/" + fileName;
-
-            // 3. MinIO 버킷에 PutObject로 파일 업로드
-            minioClient.putObject(
-                    PutObjectArgs.builder()
-                            .bucket(minioProperties.getBucket())
-                            .object(objectKey)
-                            .stream(uploadedBytes, fileInfo.getTotalSize(), -1)
-                            .build()
-            );
-
-            log.info("=== [MINIO] 전송 완료 objectKey={} ===", objectKey);
-
-            // 4. 로컬 임시 파일은 즉시 삭제하지 않음
-            //    tus-java-client가 업로드 완료 후 추가 확인 요청을 보낼 수 있으므로,
-            //    즉시 삭제하면 404가 발생하여 클라이언트가 실패로 판단함.
-            //    로컬 파일 정리는 ExpirationService가 스케줄링으로 처리함.
-            if (minioProperties.isDeleteLocalAfterTransfer()) {
-                log.debug("=== [MINIO] 로컬 파일은 ExpirationService가 정리 예정: {} ===", uploadUri);
-            }
-
-            // 5. DB 상태 갱신: "transferred" + minioObjectKey 기록
-            fileInfo.setStatus("transferred");
-            fileInfo.setMinioObjectKey(objectKey);
-            fileInfoRepository.save(fileInfo);
-
         } catch (Exception e) {
             log.error("=== [MINIO] 전송 실패 fileName={}: {} ===", fileName, e.getMessage(), e);
-            fileInfo.setStatus("failed");
+            fileInfo.markFailed();
             fileInfoRepository.save(fileInfo);
         }
     }

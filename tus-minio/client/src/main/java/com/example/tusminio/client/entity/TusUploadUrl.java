@@ -55,4 +55,8 @@ public class TusUploadUrl {
     protected void onUpdate() {
         this.updDate = LocalDateTime.now();
     }
+
+    public void updateUploadUrl(String uploadUrl) {
+        this.uploadUrl = uploadUrl;
+    }
 }

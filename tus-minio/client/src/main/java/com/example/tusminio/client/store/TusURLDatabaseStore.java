@@ -3,6 +3,7 @@ package com.example.tusminio.client.store;
 import com.example.tusminio.client.entity.TusUploadUrl;
 import com.example.tusminio.client.repository.TusUploadUrlRepository;
 import io.tus.java.client.TusURLStore;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -39,12 +40,10 @@ public class TusURLDatabaseStore implements TusURLStore {
     public void set(String fingerprint, URL url) {
         log.debug("=== [URL STORE] SET fingerprint={}, url={} ===", fingerprint, url);
 
-        Optional<TusUploadUrl> existing = repository.findById(fingerprint);
-
         TusUploadUrl entity = repository.findById(fingerprint)
-                .map(existing -> {
-                    existing.updateUploadUrl(url.toString());
-                    return existing;
+                .map(found -> {
+                    found.updateUploadUrl(url.toString());
+                    return found;
                 })
                 .orElse(TusUploadUrl.builder()
                         .fingerprint(fingerprint)
@@ -62,7 +61,7 @@ public class TusURLDatabaseStore implements TusURLStore {
      * @return 저장된 업로드 URL, 없으면 null
      */
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public URL get(String fingerprint) {
         log.debug("=== [URL STORE] GET fingerprint={} ===", fingerprint);
 

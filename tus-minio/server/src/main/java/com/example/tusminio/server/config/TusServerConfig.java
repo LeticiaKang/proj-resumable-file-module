@@ -1,6 +1,12 @@
 package com.example.tusminio.server.config;
 
+import com.example.tusminio.server.config.ValidationProperties;
 import com.example.tusminio.server.filter.TusFilter;
+import com.example.tusminio.server.repository.FileInfoRepository;
+import com.example.tusminio.server.service.CallbackService;
+import com.example.tusminio.server.service.ChecksumService;
+import com.example.tusminio.server.service.MinioStorageService;
+import com.example.tusminio.server.service.UploadProgressService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import me.desair.tus.server.TusFileUploadService;
@@ -49,6 +55,22 @@ public class TusServerConfig {
                 .withMaxUploadSize(tusServerProperties.getMaxUploadSize())
                 .withUploadUri("/files")
                 .withUploadExpirationPeriod(expirationProperties.getTimeout().toMillis());
+    }
+
+    /**
+     * TusFilter를 Bean으로 직접 생성 (FilterRegistrationBean에서만 등록하여 이중 등록 방지)
+     */
+    @Bean
+    public TusFilter tusFilter(TusFileUploadService tusFileUploadService,
+                                FileInfoRepository fileInfoRepository,
+                                ValidationProperties validationProperties,
+                                ChecksumService checksumService,
+                                MinioStorageService minioStorageService,
+                                CallbackService callbackService,
+                                UploadProgressService uploadProgressService) {
+        return new TusFilter(tusFileUploadService, fileInfoRepository,
+                validationProperties, checksumService, minioStorageService,
+                callbackService, uploadProgressService);
     }
 
     /**

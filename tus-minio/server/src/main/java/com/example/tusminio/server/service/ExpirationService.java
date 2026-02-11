@@ -36,11 +36,7 @@ public class ExpirationService {
     private final TusFileUploadService tusFileUploadService;
 
     /**
-     * 만료된 업로드를 주기적으로 정리합니다.
-     * <p>
-     * 실행 주기는 tus.expiration.cleanup-interval 설정에 따릅니다 (기본 1시간).
-     * fixedDelayString으로 설정하여 이전 실행 완료 후 대기 시간으로 동작합니다.
-     * </p>
+     * 만료된 업로드를 주기적으로 정리
      */
     @Scheduled(fixedDelayString = "#{@expirationProperties.cleanupInterval.toMillis()}")
     public void cleanupExpiredUploads() {

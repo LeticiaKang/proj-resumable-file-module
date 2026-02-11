@@ -17,7 +17,7 @@ import org.springframework.stereotype.Service;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.security.NoSuchAlgorithmException;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -162,7 +162,7 @@ public class TusClientService {
         try {
             checksum = ChecksumCalculator.calculateSha256(file.getAbsolutePath());
             log.debug("=== [체크썸] {} → {} ===", file.getName(), checksum);
-        } catch (NoSuchAlgorithmException | IOException e) {
+        } catch (IOException e) {
             throw new RuntimeException("체크섬 계산 실패: " + e.getMessage(), e);
         }
 

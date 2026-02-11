@@ -7,6 +7,7 @@ import com.example.tusminio.server.repository.FileInfoRepository;
 import com.example.tusminio.server.service.CallbackService;
 import com.example.tusminio.server.service.ChecksumService;
 import com.example.tusminio.server.service.MinioStorageService;
+import com.example.tusminio.server.service.UploadProgressService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -15,7 +16,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import me.desair.tus.server.TusFileUploadService;
 import me.desair.tus.server.upload.UploadInfo;
-import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -47,7 +47,6 @@ import java.util.List;
  * </ul>
  */
 @Slf4j
-@Component
 @RequiredArgsConstructor
 public class TusFilter extends OncePerRequestFilter {
 
@@ -57,6 +56,7 @@ public class TusFilter extends OncePerRequestFilter {
     private final ChecksumService checksumService;
     private final MinioStorageService minioStorageService;
     private final CallbackService callbackService;
+    private final UploadProgressService uploadProgressService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -81,6 +81,15 @@ public class TusFilter extends OncePerRequestFilter {
                 );
                 return;
             }
+        }
+
+        // === 실패 시뮬레이션 체크 (디버깅용, process 전에 수행해야 응답이 커밋되지 않음) ===
+        if ("PATCH".equalsIgnoreCase(method) && DebugController.shouldFailNextPatch()) {
+            log.warn("=== [TUS FILTER] 실패 시뮬레이션 활성화 - 500 응답 반환 ===");
+            response.setStatus(500);
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write("{\"error\":\"Debug: simulated failure\"}");
+            return;
         }
 
         // === tus-java-server 라이브러리로 요청 처리 위임 ===
@@ -173,35 +182,35 @@ public class TusFilter extends OncePerRequestFilter {
             long currentOffset = uploadInfo.getOffset();
             long totalLength = uploadInfo.getLength();
 
-            // DB에서 FileInfo 레코드 조회 및 오프셋 갱신
-            FileInfo fileInfo = fileInfoRepository.findByUploadUri(requestURI).orElse(null);
+            // DB에서 FileInfo 레코드 조회 및 오프셋 갱신 (@Transactional 서비스 위임)
+            FileInfo fileInfo = uploadProgressService.updateOffset(requestURI, currentOffset);
             if (fileInfo == null) {
-                log.warn("=== [TUS PATCH] DB에 FileInfo 없음: {} ===", requestURI);
                 return;
             }
-
-            fileInfo.setOffset(currentOffset);
-            fileInfoRepository.save(fileInfo);
 
             log.info("=== [TUS PATCH] 청크 수신 offset={}/{} ===", currentOffset, totalLength);
-
-            // === 실패 시뮬레이션 체크 (디버깅용) ===
-            if (DebugController.shouldFailNextPatch()) {
-                log.warn("=== [TUS PATCH] 실패 시뮬레이션 활성화 - 500 응답 반환 ===");
-                response.setStatus(500);
-                return;
-            }
 
             // === 업로드 완료 체크: 오프셋이 전체 크기와 같으면 완료 ===
             if (currentOffset == totalLength) {
                 log.info("=== [UPLOAD COMPLETE] uri={}, fileName={}, size={} ===",
                         requestURI, fileInfo.getFileName(), totalLength);
 
-                fileInfo.setStatus("completed");
-                fileInfoRepository.save(fileInfo);
+                fileInfo = uploadProgressService.markCompleted(requestURI);
+                if (fileInfo == null) {
+                    return;
+                }
 
                 // 1. 체크섬 검증 (클라이언트가 체크섬을 제공한 경우)
-                checksumService.verify(requestURI, fileInfo);
+                boolean checksumValid = checksumService.verify(requestURI, fileInfo);
+
+                if (!checksumValid) {
+                    // 체크섬 불일치 시 MinIO 전송 차단
+                    log.error("=== [UPLOAD COMPLETE] 체크섬 검증 실패, 전송 차단: {} ===", fileInfo.getFileName());
+                    fileInfo.markFailed();
+                    fileInfoRepository.save(fileInfo);
+                    callbackService.notifyCompletion(fileInfo);
+                    return;
+                }
 
                 // 2. 로컬 파일을 MinIO로 전송
                 minioStorageService.transferToMinio(requestURI, fileInfo);

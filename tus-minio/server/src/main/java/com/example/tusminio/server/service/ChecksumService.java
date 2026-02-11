@@ -42,58 +42,62 @@ public class ChecksumService {
      * @param uploadUri TUS 업로드 URI (tus-java-server에서 파일 식별)
      * @param fileInfo  파일 정보 엔티티 (checksum 필드에 기대값 포함)
      */
-    public void verify(String uploadUri, FileInfo fileInfo) {
+    /**
+     * @return 체크섬이 일치하거나 미제공인 경우 true, 불일치/오류 시 false
+     */
+    public boolean verify(String uploadUri, FileInfo fileInfo) {
         String expectedChecksum = fileInfo.getChecksum();
 
         // 클라이언트가 체크섬을 제공하지 않은 경우 검증 건너뜀
         if (expectedChecksum == null || expectedChecksum.isBlank()) {
             log.debug("=== [CHECKSUM] 체크섬 미제공, 검증 건너뜀: {} ===", fileInfo.getFileName());
-            return;
+            return true;
         }
 
         try {
             // tus-java-server에서 업로드된 파일의 InputStream 획득
-            InputStream inputStream = tusFileUploadService.getUploadedBytes(uploadUri);
-            if (inputStream == null) {
-                log.warn("=== [CHECKSUM] 파일을 찾을 수 없음: {} ===", uploadUri);
-                return;
-            }
-
-            // SHA-256 해시 계산
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] buffer = new byte[8192];
-            int bytesRead;
-            while ((bytesRead = inputStream.read(buffer)) != -1) {
-                digest.update(buffer, 0, bytesRead);
-            }
-            inputStream.close();
-
-            // 16진수 문자열로 변환
-            byte[] hashBytes = digest.digest();
-            StringBuilder hexString = new StringBuilder();
-            for (byte b : hashBytes) {
-                String hex = Integer.toHexString(0xff & b);
-                if (hex.length() == 1) {
-                    hexString.append('0');
+            try (InputStream inputStream = tusFileUploadService.getUploadedBytes(uploadUri)) {
+                if (inputStream == null) {
+                    log.warn("=== [CHECKSUM] 파일을 찾을 수 없음: {} ===", uploadUri);
+                    return false;
                 }
-                hexString.append(hex);
+
+                // SHA-256 해시 계산
+                MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                byte[] buffer = new byte[8192];
+                int bytesRead;
+                while ((bytesRead = inputStream.read(buffer)) != -1) {
+                    digest.update(buffer, 0, bytesRead);
+                }
+
+                // 16진수 문자열로 변환
+                byte[] hashBytes = digest.digest();
+                StringBuilder hexString = new StringBuilder();
+                for (byte b : hashBytes) {
+                    String hex = Integer.toHexString(0xff & b);
+                    if (hex.length() == 1) {
+                        hexString.append('0');
+                    }
+                    hexString.append(hex);
+                }
+                String computed = hexString.toString();
+
+                // 체크섬 비교
+                boolean match = computed.equalsIgnoreCase(expectedChecksum);
+                fileInfo.markChecksumVerified(match);
+                fileInfoRepository.save(fileInfo);
+
+                if (match) {
+                    log.info("=== [CHECKSUM] 검증 성공: {} ===", fileInfo.getFileName());
+                } else {
+                    log.warn("=== [CHECKSUM] 검증 실패: expected={}, computed={} ===",
+                            expectedChecksum, computed);
+                }
+                return match;
             }
-            String computed = hexString.toString();
-
-            // 체크섬 비교
-            boolean match = computed.equalsIgnoreCase(expectedChecksum);
-            fileInfo.setChecksumVerified(match);
-            fileInfoRepository.save(fileInfo);
-
-            if (match) {
-                log.info("=== [CHECKSUM] 검증 성공: {} ===", fileInfo.getFileName());
-            } else {
-                log.warn("=== [CHECKSUM] 검증 실패: expected={}, computed={} ===",
-                        expectedChecksum, computed);
-            }
-
         } catch (Exception e) {
             log.error("=== [CHECKSUM] 검증 중 오류: {} ===", e.getMessage(), e);
+            return false;
         }
     }
 }

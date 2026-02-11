@@ -15,12 +15,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 업로드 완료 콜백(웹훅) 서비스.
- * <p>
- * 파일 업로드가 완료되고 MinIO로 전송된 후, 지정된 웹훅 URL로 완료 알림을 전송합니다.
- * 콜백은 tus.callback.enabled가 true일 때만 동작합니다.
- * 외부 시스템(예: 파일 처리 파이프라인, 알림 서비스)과의 연동에 활용됩니다.
- * </p>
+ * 파일 업로드가 완료되고 MinIO로 전송된 후, 지정된 웹훅 URL로 완료 알림을 전송
  */
 @Slf4j
 @Service
@@ -33,15 +28,6 @@ public class CallbackService {
     /** RestTemplate으로 웹훅 POST 요청 전송 */
     private final RestTemplate restTemplate = new RestTemplate();
 
-    /**
-     * 업로드 완료 콜백을 전송합니다.
-     * <p>
-     * 설정에서 콜백이 비활성화되어 있으면 건너뜁니다.
-     * 콜백 전송 성공 시 callbackSent를 true로 갱신합니다.
-     * </p>
-     *
-     * @param fileInfo 업로드 완료된 파일 정보
-     */
     public void notifyCompletion(FileInfo fileInfo) {
         // 콜백이 비활성화되어 있으면 건너뜀
         if (!callbackProperties.isEnabled()) {
@@ -73,7 +59,7 @@ public class CallbackService {
             restTemplate.postForEntity(callbackUrl, request, String.class);
 
             // 콜백 전송 성공 기록
-            fileInfo.setCallbackSent(true);
+            fileInfo.markCallbackSent();
             fileInfoRepository.save(fileInfo);
 
             log.info("=== [CALLBACK] 콜백 전송 완료: url={}, fileName={} ===",
